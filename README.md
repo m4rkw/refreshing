@@ -10,7 +10,13 @@ The issue is a regression introduced in Sequoia - it does not occur on Sonoma.
 
 ## How It Works
 
-Refreshing uses a two-layer strategy to keep the display safe:
+Refreshing allows you to run the monitor at refresh rates above 120Hz but
+ensures that whenever the monitor is reconnected or the machine wakes from sleep
+the default refresh rate on initialisation of the monitor is kept at 120Hz. The
+app then upshifts back to 240Hz after the initial connection, avoiding the
+codepath that triggers the panic.
+
+it uses a two-layer strategy to achieve this:
 
 ### Permanent 120Hz in the WindowServer plist
 
@@ -32,7 +38,7 @@ As a secondary defense, the app uses `IORegisterForSystemPower` to intercept sle
 
 ## Requirements
 
-- macOS 15 (Sequoia) - the bug is Sequoia-only
+- macOS 15 (Sequoia) or later
 - Apple Silicon Mac
 - External monitor with refresh rate above 120Hz
 - Xcode Command Line Tools (`xcode-select --install`)
