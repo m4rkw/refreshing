@@ -16,6 +16,11 @@ the default refresh rate on initialisation is kept at 120Hz. The
 app then upshifts back to 240Hz after the initial connection, avoiding the
 codepath that triggers the panic.
 
+This does introduce a mild annoyance in that after connecting the monitor back
+to the mac it will show the screen for a couple of seconds and then go black
+again as it upshifts back to the higher refresh rate, but this is still way
+more preferable than a kernel panic.
+
 It uses a two-layer strategy to achieve this:
 
 ### Permanent 120Hz in the WindowServer plist
