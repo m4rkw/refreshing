@@ -12,7 +12,7 @@ The issue is a regression introduced in Sequoia - it does not occur on Sonoma.
 
 Refreshing allows you to run the monitor at refresh rates above 120Hz but
 ensures that whenever the monitor is reconnected or the machine wakes from sleep
-the default refresh rate on initialisation of the monitor is kept at 120Hz. The
+the default refresh rate on initialisation is kept at 120Hz. The
 app then upshifts back to 240Hz after the initial connection, avoiding the
 codepath that triggers the panic.
 
