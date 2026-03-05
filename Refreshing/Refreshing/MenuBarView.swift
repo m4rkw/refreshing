@@ -64,7 +64,7 @@ struct MenuBarView: View {
 
         Button("About Refreshing…") {
             let alert = NSAlert()
-            alert.messageText = "Refreshing v0.1.0"
+            alert.messageText = "Refreshing v0.1.1"
             alert.informativeText = "https://github.com/m4rkw/refreshing"
             alert.alertStyle = .informational
             alert.addButton(withTitle: "OK")

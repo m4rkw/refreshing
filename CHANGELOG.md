@@ -1,5 +1,11 @@
 # Changelog
 
+## 0.1.1
+
+- Screen blanking overlay during display reconnection to prevent interaction before the refresh rate handshake completes
+- Skip unnecessary refresh rate switching on launch if already at the target rate (eliminates screen flicker on startup)
+- Build system moved to /tmp to avoid iCloud Drive resource fork interference with code signing
+
 ## 0.1.0
 
 Initial release.

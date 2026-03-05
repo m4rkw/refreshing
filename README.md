@@ -16,10 +16,9 @@ the default refresh rate on initialisation is kept at 120Hz. The
 app then upshifts back to 240Hz after the initial connection, avoiding the
 codepath that triggers the panic.
 
-This does introduce a mild annoyance in that after connecting the monitor back
-to the mac it will show the screen for a couple of seconds and then go black
-again as it upshifts back to the higher refresh rate, but this is still way
-more preferable than a kernel panic.
+During reconnection, the app displays a full-screen overlay to prevent
+interaction while the refresh rate handshake completes. This avoids the
+confusing flash of the desktop at an intermediate rate.
 
 It uses a two-layer strategy to achieve this:
 

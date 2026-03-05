@@ -1,6 +1,5 @@
 APP_NAME = Refreshing
 BUNDLE = $(APP_NAME).app
-BINARY = $(BUNDLE)/Contents/MacOS/$(APP_NAME)
 SRC_DIR = Refreshing/Refreshing
 SOURCES = $(SRC_DIR)/DisplayManager.swift \
           $(SRC_DIR)/SleepWakeManager.swift \
@@ -11,32 +10,23 @@ SOURCES = $(SRC_DIR)/DisplayManager.swift \
 TARGET = arm64-apple-macos15.0
 SDK = $(shell xcrun --show-sdk-path)
 FRAMEWORKS = -framework Cocoa -framework IOKit -framework ServiceManagement
+BUILD_DIR = /tmp/refreshing-build
 
-.PHONY: all clean install sign
+.PHONY: all clean install
 
-all: $(BINARY) sign
-
-$(BINARY): $(SOURCES)
-	@mkdir -p $(BUNDLE)/Contents/MacOS $(BUNDLE)/Contents/Resources
-	@COPYFILE_DISABLE=1 cp $(SRC_DIR)/Info.plist $(BUNDLE)/Contents/Info.plist
-	@COPYFILE_DISABLE=1 cp $(SRC_DIR)/AppIcon.icns $(BUNDLE)/Contents/Resources/AppIcon.icns
-	xcrun swiftc -target $(TARGET) -sdk $(SDK) $(FRAMEWORKS) -o $(BINARY) $(SOURCES)
-
-sign: $(BINARY)
-	@dot_clean $(BUNDLE) 2>/dev/null || true
-	@find $(BUNDLE) -name '._*' -delete 2>/dev/null || true
-	@find $(BUNDLE) -type f -exec xattr -c {} \; 2>/dev/null || true
-	@find $(BUNDLE) -type d -exec xattr -c {} \; 2>/dev/null || true
-	@COPYFILE_DISABLE=1 codesign -s - --force --deep $(BUNDLE)
+all:
+	@rm -rf $(BUILD_DIR)/$(BUNDLE)
+	@mkdir -p $(BUILD_DIR)/$(BUNDLE)/Contents/MacOS $(BUILD_DIR)/$(BUNDLE)/Contents/Resources
+	@COPYFILE_DISABLE=1 cp $(SRC_DIR)/Info.plist $(BUILD_DIR)/$(BUNDLE)/Contents/Info.plist
+	@COPYFILE_DISABLE=1 cp $(SRC_DIR)/AppIcon.icns $(BUILD_DIR)/$(BUNDLE)/Contents/Resources/AppIcon.icns
+	xcrun swiftc -target $(TARGET) -sdk $(SDK) $(FRAMEWORKS) -o $(BUILD_DIR)/$(BUNDLE)/Contents/MacOS/$(APP_NAME) $(SOURCES)
+	@codesign -s - --force --deep $(BUILD_DIR)/$(BUNDLE)
+	@rm -rf $(BUNDLE)
+	@cp -R $(BUILD_DIR)/$(BUNDLE) $(BUNDLE)
 
 clean:
-	rm -rf $(BUNDLE)
+	rm -rf $(BUNDLE) $(BUILD_DIR)/$(BUNDLE)
 
-install: $(BINARY)
+install: all
 	@rm -rf /Applications/$(BUNDLE)
-	@COPYFILE_DISABLE=1 tar cf - $(BUNDLE) | tar xf - -C /Applications/
-	@dot_clean /Applications/$(BUNDLE) 2>/dev/null || true
-	@find /Applications/$(BUNDLE) -name '._*' -delete 2>/dev/null || true
-	@find /Applications/$(BUNDLE) -type f -exec xattr -c {} \; 2>/dev/null || true
-	@find /Applications/$(BUNDLE) -type d -exec xattr -c {} \; 2>/dev/null || true
-	@codesign -s - --force --deep /Applications/$(BUNDLE)
+	@cp -R $(BUILD_DIR)/$(BUNDLE) /Applications/$(BUNDLE)

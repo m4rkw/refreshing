@@ -11,6 +11,9 @@ final class AppState: ObservableObject {
     private let sleepWakeManager = SleepWakeManager()
     private var upshiftWorkItem: DispatchWorkItem?
     private var debounceWorkItem: DispatchWorkItem?
+    private var overlayWindow: NSWindow?
+    private var overlayTimeoutItem: DispatchWorkItem?
+    private var suppressOverlay = true
 
     // Remembered native resolution for the target display
     private var nativeWidth: Int {
@@ -95,17 +98,27 @@ final class AppState: ObservableObject {
         refreshDisplays()
         NSLog("[Refreshing] Init: displays=\(availableDisplays.map { "\($0.name) (id=\($0.id))" }), selected=\(selectedDisplayID), rates=\(availableRates), high=\(highHz), low=\(lowHz), enabled=\(isEnabled)")
 
-        // On first launch with an external display, persist 120Hz to the plist immediately
+        // On launch with an external display, persist low Hz to plist
+        // but only switch if not already at the target rate
         if isEnabled, selectedDisplayID != 0 {
-            NSLog("[Refreshing] Init: persisting \(lowHz) Hz to WindowServer plist")
-            displayManager.setRefreshRate(lowHz, for: selectedDisplayID, persist: true)
-            // Then upshift to high Hz for session
-            displayManager.setRefreshRate(highHz, for: selectedDisplayID, persist: false)
             currentRate = displayManager.currentRefreshRate(for: selectedDisplayID)
+            if abs(currentRate - highHz) < 1 {
+                NSLog("[Refreshing] Init: already at \(Int(currentRate)) Hz, no switch needed")
+            } else {
+                NSLog("[Refreshing] Init: at \(Int(currentRate)) Hz, switching to \(Int(highHz)) Hz")
+                displayManager.setRefreshRate(highHz, for: selectedDisplayID, persist: false)
+                currentRate = displayManager.currentRefreshRate(for: selectedDisplayID)
+            }
         }
 
         setupSleepWake()
         setupDisplayWatcher()
+    }
+
+    /// Called by the app after launch is fully complete to enable the overlay.
+    func enableOverlay() {
+        suppressOverlay = false
+        NSLog("[Refreshing] Overlay enabled")
     }
 
     func refreshDisplays() {
@@ -172,6 +185,59 @@ final class AppState: ObservableObject {
         refreshDisplays()
     }
 
+    // MARK: - Screen blanking overlay
+
+    private func showOverlay() {
+        guard overlayWindow == nil, !suppressOverlay else { return }
+
+        let frame = NSScreen.main?.frame ?? NSRect(x: 0, y: 0, width: 3840, height: 2160)
+        let window = NSWindow(
+            contentRect: frame,
+            styleMask: .borderless,
+            backing: .buffered,
+            defer: false
+        )
+        window.backgroundColor = .black
+        window.level = .screenSaver
+        window.ignoresMouseEvents = false
+        window.collectionBehavior = [.canJoinAllSpaces, .fullScreenAuxiliary]
+
+        let container = NSView(frame: frame)
+
+        let title = NSTextField(labelWithString: "Preventing a kernel panic...")
+        title.font = NSFont.systemFont(ofSize: 28, weight: .medium)
+        title.textColor = .white
+        title.alignment = .center
+        title.sizeToFit()
+        title.frame.origin = NSPoint(
+            x: (frame.width - title.frame.width) / 2,
+            y: frame.height / 2 + 10
+        )
+        container.addSubview(title)
+
+        window.contentView = container
+        window.orderFrontRegardless()
+        overlayWindow = window
+        NSLog("[Refreshing] Overlay shown")
+
+        // Safety timeout — never leave the user locked out
+        overlayTimeoutItem?.cancel()
+        let timeout = DispatchWorkItem { [weak self] in
+            self?.dismissOverlay()
+            NSLog("[Refreshing] Overlay dismissed by safety timeout")
+        }
+        overlayTimeoutItem = timeout
+        DispatchQueue.main.asyncAfter(deadline: .now() + 10.0, execute: timeout)
+    }
+
+    private func dismissOverlay() {
+        overlayTimeoutItem?.cancel()
+        overlayTimeoutItem = nil
+        overlayWindow?.orderOut(nil)
+        overlayWindow = nil
+        NSLog("[Refreshing] Overlay dismissed")
+    }
+
     // MARK: - Display connect/disconnect via CGDisplayReconfigurationCallback
 
     private func setupDisplayWatcher() {
@@ -213,6 +279,9 @@ final class AppState: ObservableObject {
             return
         }
 
+        // Blank the screen until upshift completes
+        showOverlay()
+
         // Immediately downshift to safe Hz — persist so WindowServer remembers 120Hz for next connection
         statusMessage = "Display connected — setting \(Int(lowHz)) Hz…"
         let success = displayManager.setRefreshRate(lowHz, for: selectedDisplayID, persist: true)
@@ -235,6 +304,7 @@ final class AppState: ObservableObject {
                 NSLog("[Refreshing] handleDisplayConnected: setRefreshRate(\(self.highHz)) → \(success)")
                 self.currentRate = self.displayManager.currentRefreshRate(for: self.selectedDisplayID)
                 self.statusMessage = success ? "\(Int(self.highHz)) Hz restored" : "Restore failed"
+                self.dismissOverlay()
                 return
             }
 
@@ -250,6 +320,7 @@ final class AppState: ObservableObject {
 
             self.currentRate = self.displayManager.currentRefreshRate(for: self.selectedDisplayID)
             self.statusMessage = success ? "\(Int(self.highHz)) Hz restored" : "Restore failed"
+            self.dismissOverlay()
 
             // Re-cache modes for sleep/wake safety net
             self.displayManager.cacheModesForSleepWake(
@@ -265,9 +336,10 @@ final class AppState: ObservableObject {
     private func handleDisplayDisconnected(_ displayID: CGDirectDisplayID) {
         NSLog("[Refreshing] handleDisplayDisconnected: id=\(displayID)")
 
-        // Cancel any pending upshift
+        // Cancel any pending upshift and dismiss overlay
         upshiftWorkItem?.cancel()
         upshiftWorkItem = nil
+        dismissOverlay()
 
         refreshDisplays()
         statusMessage = selectedDisplayID == 0 ? "No external display" : "Idle"
