@@ -16,7 +16,7 @@ the default refresh rate on initialisation is kept at 120Hz. The
 app then upshifts back to 240Hz after the initial connection, avoiding the
 codepath that triggers the panic.
 
-it uses a two-layer strategy to achieve this:
+It uses a two-layer strategy to achieve this:
 
 ### Permanent 120Hz in the WindowServer plist
 
