@@ -2,8 +2,7 @@
 
 A macOS menu bar app that prevents kernel panics (DCPEXT PANIC) on Apple Silicon Macs with external monitors running above 120Hz.
 
-### **UPDATE: since Tahoe 26.4 this no longer works. I'm not sure why yet, haven't
-had time to investigate properly**
+### UPDATE: since Tahoe 26.4 this no longer works. I'm not sure why yet, haven't had time to investigate properly
 
 ## The Problem
 
