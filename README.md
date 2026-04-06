@@ -2,6 +2,9 @@
 
 A macOS menu bar app that prevents kernel panics (DCPEXT PANIC) on Apple Silicon Macs with external monitors running above 120Hz.
 
+*** UPDATE: since Tahoe 26.4 this no longer works. I'm not sure why yet, haven't
+had time to investigate properly ***
+
 ## The Problem
 
 macOS Sequoia (and versions of macOS since then) have a bug in the Display Coprocessor (DCP) firmware that causes kernel panics when Apple Silicon Macs wake from sleep or reconnect to external monitors running at refresh rates above 120Hz. This primarily affects 4K 240Hz QD-OLED panels (Samsung, ASUS ROG, MSI MPG, etc.) and manifests as `DCPEXT2 PANIC - apt firmware: dual_pipe` in crash logs.
